@@ -2,17 +2,17 @@ use teloxide::{prelude::*, utils::command::BotCommand};
 
 use std::error::Error;
 
+mod pkg;
+
 #[derive(BotCommand)]
 #[command(rename = "lowercase", description = "These commands are supported:")]
 enum Command {
-    #[command(description = "Display this text.")]
+    #[command(description = "display this text.")]
     Help,
-    #[command(description = "Are you still there?")]
+    #[command(description = "are you still there?")]
     Ping,
-    #[command(description = "handle a username.")]
-    Username(String),
-    #[command(description = "handle a username and an age.", parse_with = "split")]
-    UsernameAndAge { username: String, age: u8 },
+    #[command(description = "query openSUSE pkg version.")]
+    Pkg(String),
 }
 
 async fn answer(
@@ -22,8 +22,7 @@ async fn answer(
     match command {
         Command::Help => cx.answer(Command::descriptions()).send().await?,
         Command::Ping => cx.answer("I am still alive.").send().await?,
-        Command::Username(username) => cx.answer(format!("Your username is @{}.", username)).await?,
-        Command::UsernameAndAge { username, age } => cx.answer(format!("Your username is @{} and age is {}.", username, age)).await?,
+        Command::Pkg(pkgname) => cx.answer(pkg::get_pkg_version(&pkgname)).send().await?,
     };
     
     Ok(())
@@ -36,7 +35,7 @@ async fn main() {
 
 async fn run() {
     teloxide::enable_logging!();
-    log::info!("Starting simple_commands_bot...");
+    log::info!("Starting MonaceBot...");
 
     let bot = Bot::from_env().auto_send();
 

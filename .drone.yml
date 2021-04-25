@@ -2,8 +2,7 @@ kind: pipeline
 name: default
 
 steps:
-- name: test
+- name: build
   image: rust
   commands:
   - cargo build --verbose --all
-  - cargo test --verbose --all
