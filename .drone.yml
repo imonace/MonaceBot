@@ -5,4 +5,4 @@ steps:
 - name: build
   image: rust
   commands:
-  - cargo build --verbose --all
+  - cargo build --verbose
