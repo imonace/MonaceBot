@@ -1,4 +1,4 @@
-use teloxide::{prelude::*, utils::command::BotCommand};
+use teloxide::{prelude::*, types::ParseMode, utils::command::BotCommand};
 
 use std::error::Error;
 
@@ -22,7 +22,10 @@ async fn answer(
     match command {
         Command::Help => cx.answer(Command::descriptions()).send().await?,
         Command::Ping => cx.answer("I am still alive.").send().await?,
-        Command::Pkg(pkgname) => cx.answer(pkg::get_pkg_version(&pkgname)).send().await?,
+        Command::Pkg(pkgname) => {
+            let result = pkg::get_pkg(&pkgname).await;
+            cx.answer(result).parse_mode(ParseMode::MarkdownV2).send().await?
+        },
     };
     
     Ok(())

@@ -1,15 +1,19 @@
-use std::error;
-use std::fmt;
+use minidom::Element;
+use teloxide::utils::markdown;
 
 //const OBS_API_URL: &str = "https://api.opensuse.org/";
 const OBS_API_BASE: &str = r#"https://api.opensuse.org/search/published/binary/id?match=@name=""#;
-const OBS_API_REST: &str = r#"" and (contains-ic(@arch, "x86_64") or contains-ic(@arch, "noarch")) and not(contains-ic(@project, "home:")) and not(contains-ic(@name, "-debuginfo")) and not(contains-ic(@name, "-debugsource")) and not(contains-ic(@name, "-devel")) and not(contains-ic(@name, "-lang")) and contains-ic(@baseproject, "openSUSE")"#;
+const OBS_API_REST: &str = r#"" and (contains-ic(@arch, "x86_64") or contains-ic(@arch, "noarch")) and not(contains-ic(@project, "home:")) and contains-ic(@baseproject, "openSUSE")"#;
 
-pub fn get_pkg_version(pkgname: &str) -> String {
+pub async fn get_pkg(pkgname: &str) -> String {
     if pkgname.is_empty() {
-        "No pkgname provided.".to_string()
+        "No pkgname provided\\.".to_string()
     } else {
-        "Function under constructing!".to_string()
+        let query_result = query_pkg(&pkgname).await.unwrap();
+        let version = format_pkg(&query_result);
+        let dash = "-------------------------";
+        format!("*Package*: {}\n{}\n*openSUSE Tumbleweed:*\n    official: {}\n{}\nFunction under constructing\\!",
+            markdown::escape(&pkgname), markdown::escape(&dash), markdown::escape(&version), markdown::escape(&dash))
     }
 }
 
@@ -27,17 +31,26 @@ async fn query_pkg(pkgname: &str) -> Result<String, reqwest::Error> {
     Ok(client.get(url).basic_auth(obs_username, Some(obs_password)).send().await?.text().await?)
 }
 
+fn format_pkg(query_result: &str) -> String {
+    let mut query_result_mod = String::from(query_result);  // minidom 库禁止不带namespace的dom，强行 hack 一手
+    query_result_mod.insert_str(query_result.find('\n').unwrap()-1, r#" xmlns="""#);
+    let root: Element = query_result_mod.parse().unwrap();
+    //println!("{:#?}",root);
+    for child in root.children() {
+        if child.attr("project") == Some("openSUSE:Factory") {
+            let version = child.attr("version").unwrap();
+            return version.to_string();
+        }
+    }
+    "No version found\\.".to_string()
+}
 
 #[tokio::test]
 async fn query_test() {
-    let result: String = match query_pkg("neofetch").await{
+    let result: String = match query_pkg("podman").await{ 
         Ok(t) => t,
         Err(e) => panic!("Error: {}", e),
     };
-    println!("{:?}", &result);
-    let result: String = match query_pkg("podman").await{
-        Ok(t) => t,
-        Err(e) => panic!("Error: {}", e),
-    };
-    println!("{:?}", &result);
+    //println!("{:?}", &result);
+    println!("{}", format_pkg(&result));
 }
