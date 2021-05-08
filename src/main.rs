@@ -2,7 +2,7 @@ use teloxide::{prelude::*, types::ParseMode, utils::command::BotCommand};
 
 use std::error::Error;
 
-mod pkg;
+mod suse;
 
 #[derive(BotCommand)]
 #[command(rename = "lowercase", description = "These commands are supported:")]
@@ -23,7 +23,7 @@ async fn answer(
         Command::Help => cx.answer(Command::descriptions()).send().await?,
         Command::Ping => cx.answer("I am still alive.").send().await?,
         Command::Pkg(pkgname) => {
-            let result = pkg::get_pkg(&pkgname).await;
+            let result = suse::get_pkg(pkgname).await;
             cx.answer(result).parse_mode(ParseMode::MarkdownV2).send().await?
         },
     };

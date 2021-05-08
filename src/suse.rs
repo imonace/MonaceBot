@@ -5,7 +5,9 @@ use teloxide::utils::markdown;
 const OBS_API_BASE: &str = r#"https://api.opensuse.org/search/published/binary/id?match=@name=""#;
 const OBS_API_REST: &str = r#"" and (contains-ic(@arch, "x86_64") or contains-ic(@arch, "noarch")) and not(contains-ic(@project, "home:")) and contains-ic(@baseproject, "openSUSE")"#;
 
-pub async fn get_pkg(pkgname: &str) -> String {
+pub async fn get_pkg(pkgname: String) -> String {
+    let pkgname = pkgname.trim();
+    // todo: add ascii filtering support
     if pkgname.is_empty() {
         "No pkgname provided\\.".to_string()
     } else {
@@ -43,14 +45,4 @@ fn format_pkg(query_result: &str) -> String {
         }
     }
     "No version found\\.".to_string()
-}
-
-#[tokio::test]
-async fn query_test() {
-    let result: String = match query_pkg("podman").await{ 
-        Ok(t) => t,
-        Err(e) => panic!("Error: {}", e),
-    };
-    //println!("{:?}", &result);
-    println!("{}", format_pkg(&result));
 }
