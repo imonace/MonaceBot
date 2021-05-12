@@ -7,8 +7,13 @@ const OBS_API_BASE: &str = r#"https://api.opensuse.org/search/published/binary/i
 const OBS_API_REST: &str = r#"" and (contains-ic(@arch, "x86_64") or contains-ic(@arch, "noarch")) and not(contains-ic(@project, "home:")) and contains-ic(@baseproject, "openSUSE")"#;
 
 pub async fn get_pkg(pkgname: String) -> String {
-    let pkgname = pkgname.trim().chars().filter(|&c| c.is_ascii_alphanumeric() || c == '-').collect::<String>();
+    let pkgname = pkgname
+        .trim()
+        .chars()
+        .filter(|&c| c.is_ascii_alphanumeric() || c == '-')
+        .collect::<String>();
     log::info!("{}: Get pkg \"{}\" requested.", Local::now(), &pkgname);
+
     if pkgname.is_empty() {
         markdown::escape("No pkgname provided.")
     } else {
@@ -28,16 +33,27 @@ pub async fn get_pkg(pkgname: String) -> String {
 }
 
 async fn query_pkg(pkgname: &str) -> Result<String, reqwest::Error> {
-    let obs_username: String = std::env::var("OBS_USERNAME").expect("OBS_USERNAME env variable not found.");
-    let obs_password: String = std::env::var("OBS_PASSWORD").expect("OBS_PASSWORD env variable not found.");
+    let obs_username: String =
+        std::env::var("OBS_USERNAME").expect("OBS_USERNAME env variable not found.");
+    let obs_password: String =
+        std::env::var("OBS_PASSWORD").expect("OBS_PASSWORD env variable not found.");
+
     let client = reqwest::Client::new();
     let url = format!("{}{}{}", OBS_API_BASE, pkgname, OBS_API_REST);
-    Ok(client.get(url).basic_auth(obs_username, Some(obs_password)).send().await?.text().await?)
+
+    Ok(client
+        .get(url)
+        .basic_auth(obs_username, Some(obs_password))
+        .send()
+        .await?
+        .text()
+        .await?)
 }
 
 fn format_pkg(query_result: &str) -> Result<Option<String>, minidom::Error> {
     let mut xml = String::from(query_result);
     xml.insert_str(xml.find('\n').unwrap() - 1, r#" xmlns="""#);
+
     let root: Element = xml.parse()?;
     for child in root.children() {
         if child.attr("project") == Some("openSUSE:Factory") {
@@ -45,5 +61,6 @@ fn format_pkg(query_result: &str) -> Result<Option<String>, minidom::Error> {
             return Ok(Some(version));
         }
     }
+
     Ok(None)
 }

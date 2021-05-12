@@ -23,9 +23,13 @@ async fn answer(
         Command::Ping => cx.answer("I am still alive.").send().await?,
         Command::Pkg(pkgname) => {
             let pkganswer = suse::get_pkg(pkgname).await;
-            cx.answer(pkganswer).parse_mode(ParseMode::MarkdownV2).send().await?
-        },
+            cx.answer(pkganswer)
+                .parse_mode(ParseMode::MarkdownV2)
+                .send()
+                .await?
+        }
     };
+
     Ok(())
 }
 
