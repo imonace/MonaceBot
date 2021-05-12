@@ -1,5 +1,5 @@
-use minidom::Element;
 use chrono::prelude::Local;
+use minidom::Element;
 use teloxide::utils::markdown;
 
 //const OBS_API_URL: &str = "https://api.opensuse.org/";
@@ -18,8 +18,8 @@ pub async fn get_pkg(pkgname: String) -> String {
         };
         let version = match format_pkg(&query_result) {
             Ok(None) => return markdown::escape("No official version founded."),
-            Ok(t) => t.unwrap(),
-            Err(_) => return markdown::escape("An error occurred during parsing.")
+            Ok(Some(t)) => t,
+            Err(_) => return markdown::escape("An error occurred during parsing."),
         };
         let dash = "-------------------------";
         format!("*Package*: {}\n{}\n*openSUSE Tumbleweed:*\n    official: {}\n{}\nFunction under constructing\\!",
@@ -28,14 +28,8 @@ pub async fn get_pkg(pkgname: String) -> String {
 }
 
 async fn query_pkg(pkgname: &str) -> Result<String, reqwest::Error> {
-    let obs_username: String = match std::env::var("OBS_USERNAME") {
-        Ok(t)  => t,
-        Err(e) => panic!("OBS_USERNAME env variable not found. Error: {}", e),
-    };
-    let obs_password: String = match std::env::var("OBS_PASSWORD") {
-        Ok(t)  => t,
-        Err(e) => panic!("OBS_PASSWORD env variable not found. Error: {}", e),
-    };
+    let obs_username: String = std::env::var("OBS_USERNAME").expect("OBS_USERNAME env variable not found.");
+    let obs_password: String = std::env::var("OBS_PASSWORD").expect("OBS_PASSWORD env variable not found.");
     let client = reqwest::Client::new();
     let url = format!("{}{}{}", OBS_API_BASE, pkgname, OBS_API_REST);
     Ok(client.get(url).basic_auth(obs_username, Some(obs_password)).send().await?.text().await?)
@@ -43,11 +37,8 @@ async fn query_pkg(pkgname: &str) -> Result<String, reqwest::Error> {
 
 fn format_pkg(query_result: &str) -> Result<Option<String>, minidom::Error> {
     let mut xml = String::from(query_result);
-    xml.insert_str(xml.find('\n').unwrap()-1, r#" xmlns="""#);
-    let root: Element = match xml.parse() {
-        Ok(root) => root,
-        Err(e) => return Err(e),
-    };
+    xml.insert_str(xml.find('\n').unwrap() - 1, r#" xmlns="""#);
+    let root: Element = xml.parse()?;
     for child in root.children() {
         if child.attr("project") == Some("openSUSE:Factory") {
             let version = child.attr("version").unwrap().to_string();

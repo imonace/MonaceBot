@@ -1,6 +1,5 @@
-use teloxide::{prelude::*, types::ParseMode, utils::command::BotCommand};
-
 use std::error::Error;
+use teloxide::{prelude::*, types::ParseMode, utils::command::BotCommand};
 
 mod suse;
 
@@ -27,7 +26,6 @@ async fn answer(
             cx.answer(pkganswer).parse_mode(ParseMode::MarkdownV2).send().await?
         },
     };
-    
     Ok(())
 }
 
