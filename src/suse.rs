@@ -3,9 +3,9 @@ use minidom::Element;
 use std::fmt;
 use teloxide::utils::markdown::escape;
 
-//const OBS_API_URL: &str = "https://api.opensuse.org/";
-const OBS_API_BASE: &str = r#"https://api.opensuse.org/search/published/binary/id?match=@name=""#;
-const OBS_API_REST: &str = r#"" and (contains-ic(@arch, "x86_64") or contains-ic(@arch, "noarch")) and not(contains-ic(@project, "home:")) and not(contains-ic(@project, "devel:")) and contains-ic(@baseproject, "openSUSE")"#;
+const OBS_API_BASE: &str = r#"https://api.opensuse.org/search/published/binary/id?match=@name="#;
+const OBS_API_ARCH: &str = r#" and (contains-ic(@arch, "x86_64") or contains-ic(@arch, "noarch")) and contains-ic(@baseproject, "openSUSE")"#;
+const OBS_API_PROJ: &str = r#" and not(contains-ic(@project, "home:")) and not(contains-ic(@project, "ppc64")) and not(contains-ic(@project, "devel:"))"#;
 
 struct PkgVersion {
     pkgname: String,
@@ -68,7 +68,7 @@ async fn query_pkg(pkgname: &str) -> Result<String, reqwest::Error> {
         std::env::var("OBS_PASSWORD").expect("OBS_PASSWORD env variable not found.");
 
     let client = reqwest::Client::new();
-    let url = format!("{}{}{}", OBS_API_BASE, pkgname, OBS_API_REST);
+    let url = format!("{}\"{}\"{}{}", OBS_API_BASE, pkgname, OBS_API_ARCH, OBS_API_PROJ);
 
     Ok(client
         .get(url)
@@ -97,7 +97,7 @@ fn format_pkg(pkgname: &str, query_result: &str) -> Result<PkgVersion, minidom::
                 child.attr("version").unwrap(),
                 child.attr("release").unwrap()
             ));
-        } else if child.attr("repository") == Some("openSUSE_Tumbleweed") {
+        } else if child.attr("repository") == Some("openSUSE_Tumbleweed") || child.attr("repository") == Some("openSUSE_Factory") {
             tw_experiment += &escape(&format!(
                 " - {}:\n    - {}-{}\n",
                 child.attr("project").unwrap(),
