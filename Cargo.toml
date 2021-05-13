@@ -1,6 +1,6 @@
 [package]
 name = "monace_bot"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["imonace <mail@mona.moe>"]
 edition = "2018"
 
@@ -8,10 +8,8 @@ edition = "2018"
 
 [dependencies]
 chrono = "0.4"
-# web stuff
 reqwest = { version = "0.11", features = ["json"] }
 minidom = "0.13.0"
-# bot framework stuff
 teloxide = { version = "0.4", features = ["macros", "auto-send"] }
 log = "0.4.8"
 pretty_env_logger = "0.4.0"
