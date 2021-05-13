@@ -97,7 +97,7 @@ fn format_pkg(pkgname: &str, query_result: &str) -> Result<PkgVersion, minidom::
                 child.attr("version").unwrap(),
                 child.attr("release").unwrap()
             ));
-        } else if child.attr("repository") == Some("openSUSE_Tumbleweed") || child.attr("repository") == Some("openSUSE_Factory") {
+        } else if child.attr("repository") == Some("openSUSE_Tumbleweed") {
             tw_experiment += &escape(&format!(
                 " - {}:\n    - {}-{}\n",
                 child.attr("project").unwrap(),
