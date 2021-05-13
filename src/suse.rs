@@ -4,8 +4,8 @@ use std::fmt;
 use teloxide::utils::markdown::escape;
 
 const OBS_API_BASE: &str = r#"https://api.opensuse.org/search/published/binary/id?match=@name="#;
-const OBS_API_ARCH: &str = r#" and (contains-ic(@arch, "x86_64") or contains-ic(@arch, "noarch")) and contains-ic(@baseproject, "openSUSE")"#;
-const OBS_API_PROJ: &str = r#" and not(contains-ic(@project, "home:")) and not(contains-ic(@project, "ppc64")) and not(contains-ic(@project, "devel:"))"#;
+const OBS_API_ARCH: &str = r#" and (contains-ic(@arch, "x86_64") or contains-ic(@arch, "noarch")) and contains-ic(@baseproject, "openSUSE:")"#;
+const OBS_API_PROJ: &str = r#" and not(contains-ic(@project, "home:")) and not(contains-ic(@project, "devel:"))"#;
 
 struct PkgVersion {
     pkgname: String,
@@ -42,7 +42,7 @@ pub async fn get_pkg(pkgname: String) -> String {
     let pkgname = pkgname
         .trim()
         .chars()
-        .filter(|&c| c.is_ascii_alphanumeric() || c == '-')
+        .filter(|&c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
         .collect::<String>();
     log::info!("{}: Get pkg \"{}\" requested.", Local::now(), &pkgname);
 
@@ -93,7 +93,7 @@ fn format_pkg(pkgname: &str, query_result: &str) -> Result<PkgVersion, minidom::
     for child in root.children() {
         if child.attr("project") == Some("openSUSE:Factory") {
             tw_official = escape(&format!(
-                " - Official:\n    - {}-{}\n",
+                " - official:\n    - {}-{}\n",
                 child.attr("version").unwrap(),
                 child.attr("release").unwrap()
             ));
@@ -116,14 +116,14 @@ fn format_pkg(pkgname: &str, query_result: &str) -> Result<PkgVersion, minidom::
             if patchinfo_new > patchinfo {
                 patchinfo = patchinfo_new;
                 leap_official = escape(&format!(
-                    " - Official:\n    - {}-{}\n",
+                    " - official:\n    - {}-{}\n",
                     child.attr("version").unwrap(),
                     child.attr("release").unwrap()
                 ));
             };
         } else if child.attr("project") == Some("openSUSE:Leap:15.2") && patchinfo == 0 {
             leap_official = escape(&format!(
-                " - Official:\n    - {}-{}\n",
+                " - official:\n    - {}-{}\n",
                 child.attr("version").unwrap(),
                 child.attr("release").unwrap()
             ));
