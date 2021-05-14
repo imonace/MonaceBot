@@ -98,5 +98,5 @@ fn format_pkg(pkgname: &str, query_result: &str) -> Result<PkgVersion, minidom::
 }
 
 fn format_version(project: &str, verison: &str, release: &str) -> String {
-    format!(" - {}:\n    - {}-{}\n", project, verison, release)
+    format!(" - {}: {}-{}\n", project, verison, release)
 }
