@@ -1,7 +1,7 @@
 use chrono::Local;
 use minidom::Element;
 use std::fmt;
-use teloxide::utils::markdown::escape;
+use teloxide::utils::html::bold;
 
 const OBS_API_BASE: &str = r#"https://api.opensuse.org/search/published/binary/id?match=@name="#;
 const OBS_API_ARCH: &str = r#" and (contains-ic(@arch, "x86_64") or contains-ic(@arch, "noarch")) and contains-ic(@baseproject, "openSUSE:")"#;
@@ -9,53 +9,40 @@ const OBS_API_PROJ: &str = r#" and not(contains-ic(@project, "home:")) and not(c
 
 struct PkgVersion {
     pkgname: String,
-    tw_official: String,
-    tw_experiment: String,
-    leap_official: String,
-    leap_experiment: String,
+    tw_off: String,
+    tw_exp: String,
+    lp_off: String,
+    lp_exp: String,
 }
 
 impl fmt::Display for PkgVersion {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.tw_official.is_empty()
-            && self.tw_experiment.is_empty()
-            && self.leap_official.is_empty()
-            && self.leap_experiment.is_empty()
-        {
-            write!(f, "{}", escape("No official version founded."))
+        if self.tw_off.is_empty() && self.tw_exp.is_empty() && self.lp_off.is_empty() && self.lp_exp.is_empty() {
+            write!(f, "No official version founded.")
         } else {
-            write!(
-                f,
-                "*Package*: {}\n{}\n*openSUSE Tumbleweed:*\n{}{}*openSUSE Leap 15\\.2:*\n{}{}",
-                escape(&self.pkgname),
-                escape("-------------------------"),
-                self.tw_official,
-                self.tw_experiment,
-                self.leap_official,
-                self.leap_experiment
+            write!(f, "{}: {}\n-------------------------\n{}:\n{}{}{}:\n{}{}",
+                bold("Package"), self.pkgname,
+                bold("openSUSE Tumbleweed"), self.tw_off, self.tw_exp,
+                bold("openSUSE Leap 15.2"), self.lp_off, self.lp_exp
             )
         }
     }
 }
 
 pub async fn get_pkg(pkgname: String) -> String {
-    let pkgname = pkgname
-        .trim()
-        .chars()
-        .filter(|&c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
-        .collect::<String>();
+    let pkgname = pkgname.trim().chars().filter(|&c| c.is_ascii_alphanumeric() || c == '-' || c == '_').collect::<String>();
     log::info!("{}: Get pkg \"{}\" requested.", Local::now(), &pkgname);
 
     if pkgname.is_empty() {
-        escape("No pkgname provided.")
+        "No pkgname provided.".to_string()
     } else {
         let query_result = match query_pkg(&pkgname).await {
             Ok(t) => t,
-            Err(_) => return escape("An error occurred during requesting."),
+            Err(_) => return "An error occurred during requesting.".to_string(),
         };
         let version = match format_pkg(&pkgname, &query_result) {
             Ok(t) => t,
-            Err(_) => return escape("An error occurred during parsing."),
+            Err(_) => return "An error occurred during parsing.".to_string(),
         };
         version.to_string()
     }
@@ -70,78 +57,46 @@ async fn query_pkg(pkgname: &str) -> Result<String, reqwest::Error> {
     let client = reqwest::Client::new();
     let url = format!("{}\"{}\"{}{}", OBS_API_BASE, pkgname, OBS_API_ARCH, OBS_API_PROJ);
 
-    Ok(client
-        .get(url)
-        .basic_auth(obs_username, Some(obs_password))
-        .send()
-        .await?
-        .text()
-        .await?)
+    Ok(client.get(url).basic_auth(obs_username, Some(obs_password)).send().await?.text().await?)
 }
 
 fn format_pkg(pkgname: &str, query_result: &str) -> Result<PkgVersion, minidom::Error> {
     let mut xml = String::from(query_result);
     xml.insert_str(xml.find('\n').unwrap() - 1, r#" xmlns="""#);
 
-    let mut tw_official = String::new();
-    let mut tw_experiment = String::new();
-    let mut leap_official = String::new();
-    let mut leap_experiment = String::new();
-    let mut patchinfo = 0;
+    let mut tw_off = String::new();
+    let mut tw_exp = String::new();
+    let mut lp_off = String::new();
+    let mut lp_exp = String::new();
+    let mut patchinfo_rev = 0;
 
     let root: Element = xml.parse()?;
     for child in root.children() {
-        if child.attr("project") == Some("openSUSE:Factory") {
-            tw_official = escape(&format!(
-                " - official:\n    - {}-{}\n",
-                child.attr("version").unwrap(),
-                child.attr("release").unwrap()
-            ));
-        } else if child.attr("repository") == Some("openSUSE_Tumbleweed") {
-            tw_experiment += &escape(&format!(
-                " - {}:\n    - {}-{}\n",
-                child.attr("project").unwrap(),
-                child.attr("version").unwrap(),
-                child.attr("release").unwrap()
-            ));
-        } else if child.attr("project") == Some("openSUSE:Leap:15.2:Update") {
-            let patchinfo_new = child
-                .attr("package")
-                .unwrap()
-                .split('.')
-                .last()
-                .unwrap()
-                .parse::<i32>()
-                .unwrap();
-            if patchinfo_new > patchinfo {
-                patchinfo = patchinfo_new;
-                leap_official = escape(&format!(
-                    " - official:\n    - {}-{}\n",
-                    child.attr("version").unwrap(),
-                    child.attr("release").unwrap()
-                ));
+        let project = child.attr("project");
+        let version = child.attr("version");
+        let release = child.attr("release");
+        let repository = child.attr("repository");
+        
+        if project == Some("openSUSE:Factory") {
+            tw_off = format_version("official", version.unwrap(), release.unwrap());
+        } else if repository == Some("openSUSE_Tumbleweed") {
+            tw_exp += &format_version(project.unwrap(), version.unwrap(), release.unwrap());
+        } else if project == Some("openSUSE:Leap:15.2:Update") {
+            let patchinfo_new = child.attr("package").unwrap().split('.').last().unwrap().parse::<i32>().unwrap();
+            if patchinfo_new > patchinfo_rev {
+                patchinfo_rev = patchinfo_new;
+                lp_off = format_version("official", version.unwrap(), release.unwrap());
             };
-        } else if child.attr("project") == Some("openSUSE:Leap:15.2") && patchinfo == 0 {
-            leap_official = escape(&format!(
-                " - official:\n    - {}-{}\n",
-                child.attr("version").unwrap(),
-                child.attr("release").unwrap()
-            ));
-        } else if child.attr("repository") == Some("openSUSE_Leap_15.2") {
-            leap_experiment += &escape(&format!(
-                " - {}:\n    - {}-{}\n",
-                child.attr("project").unwrap(),
-                child.attr("version").unwrap(),
-                child.attr("release").unwrap()
-            ));
+        } else if project == Some("openSUSE:Leap:15.2") && patchinfo_rev == 0 {
+            lp_off = format_version("official", version.unwrap(), release.unwrap());
+        } else if repository == Some("openSUSE_Leap_15.2") {
+            lp_exp += &format_version(project.unwrap(), version.unwrap(), release.unwrap());
         }
     }
 
-    Ok(PkgVersion {
-        pkgname: pkgname.to_string(),
-        tw_official,
-        tw_experiment,
-        leap_official,
-        leap_experiment,
-    })
+    Ok( PkgVersion { pkgname: pkgname.to_string(), tw_off, tw_exp, lp_off, lp_exp } )
+}
+
+fn format_version(project: &str, verison: &str, release: &str) -> String {
+    format!(" - {}:\n    - {}-{}\n", project, verison, release)
 }

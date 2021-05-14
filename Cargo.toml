@@ -1,6 +1,6 @@
 [package]
 name = "monace_bot"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["imonace <mail@mona.moe>"]
 edition = "2018"
 
