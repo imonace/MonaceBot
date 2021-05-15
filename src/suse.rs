@@ -5,8 +5,10 @@ use teloxide::utils::html::bold;
 
 const OBS_API_BASE: &str = r#"https://api.opensuse.org/search/published/binary/id?match=@name="#;
 const OBS_API_ARCH: &str = r#" and (contains-ic(@arch, "x86_64") or contains-ic(@arch, "noarch")) and contains-ic(@baseproject, "openSUSE:")"#;
-const OBS_API_PROJ: &str = r#" and not(contains-ic(@project, "home:")) and not(contains-ic(@project, "devel:"))"#;
+const OBS_API_PROJ: &str =
+    r#" and not(contains-ic(@project, "home:")) and not(contains-ic(@project, "devel:"))"#;
 
+#[derive(Debug)]
 struct PkgVersion {
     pkgname: String,
     tw_off: String,
@@ -17,20 +19,35 @@ struct PkgVersion {
 
 impl fmt::Display for PkgVersion {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.tw_off.is_empty() && self.tw_exp.is_empty() && self.lp_off.is_empty() && self.lp_exp.is_empty() {
+        if self.tw_off.is_empty()
+            && self.tw_exp.is_empty()
+            && self.lp_off.is_empty()
+            && self.lp_exp.is_empty()
+        {
             write!(f, "No official version founded.")
         } else {
-            write!(f, "{}: {}\n-------------------------\n{}:\n{}{}{}:\n{}{}",
-                bold("Package"), self.pkgname,
-                bold("openSUSE Tumbleweed"), self.tw_off, self.tw_exp,
-                bold("openSUSE Leap 15.2"), self.lp_off, self.lp_exp
+            write!(
+                f,
+                "{}: {}\n-------------------------\n{}:\n{}{}{}:\n{}{}",
+                bold("Package"),
+                self.pkgname,
+                bold("openSUSE Tumbleweed"),
+                self.tw_off,
+                self.tw_exp,
+                bold("openSUSE Leap 15.2"),
+                self.lp_off,
+                self.lp_exp
             )
         }
     }
 }
 
 pub async fn get_pkg(pkgname: String) -> String {
-    let pkgname = pkgname.trim().chars().filter(|&c| c.is_ascii_alphanumeric() || c == '-' || c == '_').collect::<String>();
+    let pkgname = pkgname
+        .trim()
+        .chars()
+        .filter(|&c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+        .collect::<String>();
     log::info!("{}: Get pkg \"{}\" requested.", Local::now(), &pkgname);
 
     if pkgname.is_empty() {
@@ -55,9 +72,18 @@ async fn query_pkg(pkgname: &str) -> Result<String, reqwest::Error> {
         std::env::var("OBS_PASSWORD").expect("OBS_PASSWORD env variable not found.");
 
     let client = reqwest::Client::new();
-    let url = format!("{}\"{}\"{}{}", OBS_API_BASE, pkgname, OBS_API_ARCH, OBS_API_PROJ);
+    let url = format!(
+        "{}\"{}\"{}{}",
+        OBS_API_BASE, pkgname, OBS_API_ARCH, OBS_API_PROJ
+    );
 
-    Ok(client.get(url).basic_auth(obs_username, Some(obs_password)).send().await?.text().await?)
+    Ok(client
+        .get(url)
+        .basic_auth(obs_username, Some(obs_password))
+        .send()
+        .await?
+        .text()
+        .await?)
 }
 
 fn format_pkg(pkgname: &str, query_result: &str) -> Result<PkgVersion, minidom::Error> {
@@ -76,13 +102,20 @@ fn format_pkg(pkgname: &str, query_result: &str) -> Result<PkgVersion, minidom::
         let version = child.attr("version");
         let release = child.attr("release");
         let repository = child.attr("repository");
-        
+
         if project == Some("openSUSE:Factory") {
             tw_off = format_version("official", version.unwrap(), release.unwrap());
         } else if repository == Some("openSUSE_Tumbleweed") {
             tw_exp += &format_version(project.unwrap(), version.unwrap(), release.unwrap());
         } else if project == Some("openSUSE:Leap:15.2:Update") {
-            let patchinfo_new = child.attr("package").unwrap().split('.').last().unwrap().parse::<i32>().unwrap();
+            let patchinfo_new = child
+                .attr("package")
+                .unwrap()
+                .split('.')
+                .last()
+                .unwrap()
+                .parse::<i32>()
+                .unwrap();
             if patchinfo_new > patchinfo_rev {
                 patchinfo_rev = patchinfo_new;
                 lp_off = format_version("official", version.unwrap(), release.unwrap());
@@ -94,7 +127,13 @@ fn format_pkg(pkgname: &str, query_result: &str) -> Result<PkgVersion, minidom::
         }
     }
 
-    Ok( PkgVersion { pkgname: pkgname.to_string(), tw_off, tw_exp, lp_off, lp_exp } )
+    Ok(PkgVersion {
+        pkgname: pkgname.to_string(),
+        tw_off,
+        tw_exp,
+        lp_off,
+        lp_exp,
+    })
 }
 
 fn format_version(project: &str, verison: &str, release: &str) -> String {
