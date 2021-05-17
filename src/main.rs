@@ -22,8 +22,7 @@ async fn answer(
         Command::Help => cx.answer(Command::descriptions()).send().await?,
         Command::Ping => cx.answer("I am still alive.").send().await?,
         Command::Pkg(pkgname) => {
-            let pkganswer = suse::get_pkg(pkgname).await;
-            cx.answer(pkganswer)
+            cx.answer(suse::get_pkg(pkgname).await)
                 .parse_mode(ParseMode::Html)
                 .send()
                 .await?
@@ -44,6 +43,6 @@ async fn run() {
 
     let bot = Bot::from_env().auto_send();
 
-    let bot_name: String = String::from("monacebot");
+    let bot_name = String::from("monacebot");
     teloxide::commands_repl(bot, bot_name, answer).await;
 }
