@@ -44,6 +44,6 @@ async fn run() {
 
     let bot = Bot::from_env().auto_send();
 
-    let bot_name: String = String::from("MonaceBot");
+    let bot_name: String = String::from("monacebot");
     teloxide::commands_repl(bot, bot_name, answer).await;
 }
